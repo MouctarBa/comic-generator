@@ -42,16 +42,16 @@ export function PanelCard({
   }
 
   return (
-    <div className="glass rounded-xl p-4 flex flex-col gap-3 group hover:glow-sm transition-all duration-300">
+    <div className="card rounded-lg p-4 flex flex-col gap-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-mono text-indigo-400/70">
+        <span className="text-xs font-mono text-zinc-500">
           Panel {panel.global_index + 1}
         </span>
         <StatusBadge status={panel.status} />
       </div>
 
       {/* Image */}
-      <div className="relative aspect-square w-full overflow-hidden rounded-lg bg-slate-900/80 border border-white/5">
+      <div className="relative aspect-square w-full overflow-hidden rounded-md bg-zinc-900 border border-zinc-800">
         {imageAsset ? (
           <img
             src={imageAsset.url}
@@ -61,18 +61,18 @@ export function PanelCard({
         ) : (
           <div className="flex h-full items-center justify-center">
             {panel.status === "generating" ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="spinner h-8 w-8" />
-                <span className="text-xs text-indigo-300/60">Generating...</span>
+              <div className="flex flex-col items-center gap-2">
+                <div className="spinner h-6 w-6" />
+                <span className="text-xs text-zinc-600">Generating...</span>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-2">
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-slate-600">
+              <div className="flex flex-col items-center gap-1.5">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" className="text-zinc-700">
                   <rect x="3" y="3" width="18" height="18" rx="2" />
                   <circle cx="8.5" cy="8.5" r="1.5" />
                   <path d="M21 15l-5-5L5 21" />
                 </svg>
-                <span className="text-xs text-slate-600">No image yet</span>
+                <span className="text-xs text-zinc-700">No image yet</span>
               </div>
             )}
           </div>
@@ -85,9 +85,9 @@ export function PanelCard({
           {panel.dialogue_json.map((d, i) => (
             <div
               key={i}
-              className="rounded-lg bg-indigo-500/8 border border-indigo-500/10 px-2.5 py-1.5 text-xs text-slate-300"
+              className="rounded-md bg-zinc-900 border border-zinc-800 px-2.5 py-1.5 text-xs text-zinc-400"
             >
-              <span className="font-semibold text-indigo-300">{d.speaker}:</span>{" "}
+              <span className="font-medium text-zinc-300">{d.speaker}:</span>{" "}
               {d.text}
             </div>
           ))}
@@ -100,20 +100,20 @@ export function PanelCard({
           <textarea
             value={promptText}
             onChange={(e) => setPromptText(e.target.value)}
-            className="input-futuristic w-full rounded-lg p-2.5 text-xs"
+            className="input w-full rounded-md p-2.5 text-xs"
             rows={4}
           />
           <div className="flex gap-2">
             <button
               onClick={() => handleRegenerate(promptText)}
               disabled={regenerating}
-              className="btn-accent rounded-lg px-3 py-1.5 text-xs disabled:opacity-50"
+              className="btn-primary rounded-md px-3 py-1.5 text-xs"
             >
               {regenerating ? "Regenerating..." : "Regenerate"}
             </button>
             <button
               onClick={() => setEditingPrompt(false)}
-              className="btn-secondary rounded-lg px-3 py-1.5 text-xs"
+              className="btn-ghost rounded-md px-3 py-1.5 text-xs"
             >
               Cancel
             </button>
@@ -124,13 +124,13 @@ export function PanelCard({
           <button
             onClick={() => handleRegenerate()}
             disabled={regenerating || panel.status === "generating"}
-            className="btn-secondary rounded-lg px-3 py-1.5 text-xs flex-1 disabled:opacity-50"
+            className="btn-ghost rounded-md px-3 py-1.5 text-xs flex-1 disabled:opacity-50"
           >
             {regenerating ? "Regenerating..." : "Regenerate"}
           </button>
           <button
             onClick={() => setEditingPrompt(true)}
-            className="btn-secondary rounded-lg px-3 py-1.5 text-xs"
+            className="btn-ghost rounded-md px-3 py-1.5 text-xs"
           >
             Edit Prompt
           </button>
@@ -138,7 +138,7 @@ export function PanelCard({
       )}
 
       {panel.regen_count > 0 && (
-        <span className="text-[10px] text-slate-500 font-mono">
+        <span className="text-[10px] text-zinc-600 font-mono">
           {panel.regen_count}x regenerated
         </span>
       )}

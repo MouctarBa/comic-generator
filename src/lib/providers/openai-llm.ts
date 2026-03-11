@@ -67,11 +67,11 @@ TRANSITIONS: "same scene", "moments later", "meanwhile", "cut to", "zoom in", "z
         { role: "user", content: user },
       ],
       temperature: 0.7,
+      response_format: { type: "json_object" },
     });
 
     const text = resp.choices[0]?.message?.content ?? "{}";
-    const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-    return JSON.parse(cleaned) as StoryboardJSON;
+    return JSON.parse(text) as StoryboardJSON;
   }
 
   async rewritePanel(args: {
@@ -95,10 +95,10 @@ TRANSITIONS: "same scene", "moments later", "meanwhile", "cut to", "zoom in", "z
         { role: "user", content: user },
       ],
       temperature: 0.7,
+      response_format: { type: "json_object" },
     });
 
     const text = resp.choices[0]?.message?.content ?? "{}";
-    const cleaned = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-    return JSON.parse(cleaned);
+    return JSON.parse(text);
   }
 }

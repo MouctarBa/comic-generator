@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { OpenAILLMProvider } from "@/lib/providers/openai-llm";
 import { OpenAIImageProvider } from "@/lib/providers/openai-image";
 import { StoryboardJSON } from "@/lib/providers/llm";
+import { PDFDocument } from "pdf-lib";
 
 const llm = new OpenAILLMProvider();
 const img = new OpenAIImageProvider();
@@ -129,9 +130,16 @@ function buildPanelPrompt(
     // Visual continuity
     must ? `VISUAL CONTINUITY: ${must}.` : "",
     "",
+    // Dialogue — render as speech bubbles in the image
+    panel.dialogue?.length
+      ? `DIALOGUE (render as comic speech bubbles in the image):\n${panel.dialogue.map((d) => `  ${d.speaker}: "${d.text}"`).join("\n")}`
+      : "",
+    "",
     // Technical requirements
-    `Do NOT render any text, speech bubbles, or dialogue in the image.`,
     `High quality, coherent composition, professional comic art, consistent character designs.`,
+    panel.dialogue?.length
+      ? `Include comic-style speech bubbles with the dialogue text. Make text legible.`
+      : "",
   ]
     .filter((line) => line !== undefined)
     .join("\n")
@@ -193,9 +201,19 @@ async function processGeneratePanel(job: Record<string, unknown>) {
     .update({ status: "generating", updated_at: new Date().toISOString() })
     .eq("id", panelId);
 
+  // Fetch reference image URLs for this project
+  const { data: refAssets } = await sb
+    .from("assets")
+    .select("url")
+    .eq("project_id", projectId)
+    .eq("type", "reference");
+
+  const referenceUrls = (refAssets ?? []).map((a) => a.url);
+
   const image = await img.generatePanel({
     prompt: panel.prompt,
     size: "1024x1024",
+    referenceUrls,
   });
 
   // Store in Supabase Storage
@@ -248,7 +266,7 @@ async function processGeneratePanel(job: Record<string, unknown>) {
 }
 
 // ---------------------------------------------------------------------------
-// Export — Phase 1: simple JSON manifest (PDF generation can be added later)
+// Export — Generate a comic PDF with panel images laid out in a grid
 // ---------------------------------------------------------------------------
 async function processExport(job: Record<string, unknown>) {
   const sb = supabaseAdmin();
@@ -262,44 +280,134 @@ async function processExport(job: Record<string, unknown>) {
     .order("global_index", { ascending: true });
 
   if (error) throw error;
+  if (!panels?.length) throw new Error("No panels to export");
 
-  const { data: storyboard } = await sb
-    .from("storyboards")
-    .select("storyboard_json")
-    .eq("project_id", projectId)
+  const { data: project } = await sb
+    .from("projects")
+    .select("title")
+    .eq("id", projectId)
     .single();
 
-  // Build export manifest
-  const manifest = {
-    project_id: projectId,
-    storyboard: storyboard?.storyboard_json,
-    panels: (panels ?? []).map((p) => ({
-      global_index: p.global_index,
-      page_num: p.page_num,
-      panel_num: p.panel_num,
-      dialogue: p.dialogue_json,
-      image_url: (p.assets as { url: string } | null)?.url ?? null,
-    })),
-    exported_at: new Date().toISOString(),
-  };
+  // Download ALL images in parallel upfront (the slow part)
+  const imageBuffers = await Promise.all(
+    panels.map(async (p) => {
+      const url = (p.assets as { url: string } | null)?.url;
+      if (!url) return null;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        const resp = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (!resp.ok) return null;
+        return Buffer.from(await resp.arrayBuffer());
+      } catch {
+        return null;
+      }
+    })
+  );
 
-  // Store manifest as JSON in storage
-  const manifestPath = `exports/${projectId}/manifest.json`;
-  const manifestBytes = Buffer.from(JSON.stringify(manifest, null, 2));
+  // Group panels by page_num
+  const pageGroups = new Map<number, Array<{ panel: (typeof panels)[0]; buf: Buffer | null }>>();
+  for (let i = 0; i < panels.length; i++) {
+    const p = panels[i];
+    const pageNum = p.page_num ?? 1;
+    if (!pageGroups.has(pageNum)) pageGroups.set(pageNum, []);
+    pageGroups.get(pageNum)!.push({ panel: p, buf: imageBuffers[i] });
+  }
 
-  const up = await sb.storage.from("comic").upload(manifestPath, manifestBytes, {
-    contentType: "application/json",
+  // Create PDF — US Letter size (612 x 792 points)
+  const pdfDoc = await PDFDocument.create();
+  const PAGE_W = 612;
+  const PAGE_H = 792;
+  const MARGIN = 24;
+  const GAP = 12;
+  const USABLE_W = PAGE_W - MARGIN * 2;
+  const USABLE_H = PAGE_H - MARGIN * 2;
+
+  // Process each comic page
+  const sortedPages = [...pageGroups.entries()].sort((a, b) => a[0] - b[0]);
+
+  for (const [, pagePanels] of sortedPages) {
+    const page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    const count = pagePanels.length;
+
+    // Determine grid layout based on panel count
+    let cols: number, rows: number;
+    if (count <= 1) { cols = 1; rows = 1; }
+    else if (count <= 2) { cols = 2; rows = 1; }
+    else if (count <= 4) { cols = 2; rows = 2; }
+    else if (count <= 6) { cols = 2; rows = 3; }
+    else if (count <= 9) { cols = 3; rows = 3; }
+    else { cols = 3; rows = Math.ceil(count / 3); }
+
+    const cellW = (USABLE_W - GAP * (cols - 1)) / cols;
+    const cellH = (USABLE_H - GAP * (rows - 1)) / rows;
+
+    for (let i = 0; i < pagePanels.length; i++) {
+      const { buf } = pagePanels[i];
+      if (!buf) continue;
+
+      // Embed image — try PNG then JPEG
+      let img;
+      try {
+        img = await pdfDoc.embedPng(buf);
+      } catch {
+        try {
+          img = await pdfDoc.embedJpg(buf);
+        } catch {
+          continue;
+        }
+      }
+
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+
+      // PDF coordinates: origin is bottom-left
+      const x = MARGIN + col * (cellW + GAP);
+      const y = PAGE_H - MARGIN - (row + 1) * cellH - row * GAP;
+
+      // Scale image to fit cell while preserving aspect ratio
+      const imgAspect = img.width / img.height;
+      const cellAspect = cellW / cellH;
+      let drawW = cellW;
+      let drawH = cellH;
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (imgAspect > cellAspect) {
+        drawH = cellW / imgAspect;
+        offsetY = (cellH - drawH) / 2;
+      } else {
+        drawW = cellH * imgAspect;
+        offsetX = (cellW - drawW) / 2;
+      }
+
+      page.drawImage(img, {
+        x: x + offsetX,
+        y: y + offsetY,
+        width: drawW,
+        height: drawH,
+      });
+    }
+  }
+
+  // Save PDF
+  const pdfBytes = await pdfDoc.save();
+  const pdfPath = `exports/${projectId}/comic.pdf`;
+
+  const up = await sb.storage.from("comic").upload(pdfPath, Buffer.from(pdfBytes), {
+    contentType: "application/pdf",
     upsert: true,
   });
   if (up.error) throw up.error;
 
-  const { data: pub } = sb.storage.from("comic").getPublicUrl(manifestPath);
+  const { data: pub } = sb.storage.from("comic").getPublicUrl(pdfPath);
 
   await sb.from("assets").insert({
     project_id: projectId,
-    type: "export_manifest",
+    type: "export_pdf",
     url: pub.publicUrl,
-    meta: { format: "json" },
+    meta: { format: "pdf", title: project?.title ?? "Comic", panel_count: panels.length },
   });
 
   await sb

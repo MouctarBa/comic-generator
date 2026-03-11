@@ -21,6 +21,12 @@ export async function POST(
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
+  // Ensure storage bucket exists
+  const { error: bucketErr } = await sb.storage.getBucket("comic");
+  if (bucketErr) {
+    await sb.storage.createBucket("comic", { public: true });
+  }
+
   const formData = await req.formData();
   const files = formData.getAll("files") as File[];
 
@@ -29,39 +35,50 @@ export async function POST(
   }
 
   const uploaded: Array<{ id: string; url: string; name: string }> = [];
+  const errors: string[] = [];
 
   for (const file of files) {
-    const ext = file.name.split(".").pop() || "png";
-    const path = `refs/${projectId}/${uuid()}.${ext}`;
-    const bytes = Buffer.from(await file.arrayBuffer());
+    try {
+      const ext = file.name.split(".").pop() || "png";
+      const path = `refs/${projectId}/${uuid()}.${ext}`;
+      const bytes = Buffer.from(await file.arrayBuffer());
 
-    const { error: upErr } = await sb.storage.from("comic").upload(path, bytes, {
-      contentType: file.type || "image/png",
-      upsert: false,
-    });
+      const { error: upErr } = await sb.storage.from("comic").upload(path, bytes, {
+        contentType: file.type || "image/png",
+        upsert: false,
+      });
 
-    if (upErr) {
-      return NextResponse.json({ error: upErr.message }, { status: 500 });
+      if (upErr) {
+        errors.push(`Upload failed for ${file.name}: ${upErr.message}`);
+        continue;
+      }
+
+      const { data: pub } = sb.storage.from("comic").getPublicUrl(path);
+
+      const { data: asset, error: aErr } = await sb
+        .from("assets")
+        .insert({
+          project_id: projectId,
+          type: "reference",
+          url: pub.publicUrl,
+          meta: { original_name: file.name, size: file.size },
+        })
+        .select("id, url")
+        .single();
+
+      if (aErr) {
+        errors.push(`DB insert failed for ${file.name}: ${aErr.message}`);
+        continue;
+      }
+
+      uploaded.push({ id: asset.id, url: asset.url, name: file.name });
+    } catch (e) {
+      errors.push(`${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
+  }
 
-    const { data: pub } = sb.storage.from("comic").getPublicUrl(path);
-
-    const { data: asset, error: aErr } = await sb
-      .from("assets")
-      .insert({
-        project_id: projectId,
-        type: "reference",
-        url: pub.publicUrl,
-        meta: { original_name: file.name, size: file.size },
-      })
-      .select("id, url")
-      .single();
-
-    if (aErr) {
-      return NextResponse.json({ error: aErr.message }, { status: 500 });
-    }
-
-    uploaded.push({ id: asset.id, url: asset.url, name: file.name });
+  if (uploaded.length === 0 && errors.length > 0) {
+    return NextResponse.json({ error: errors.join("; ") }, { status: 500 });
   }
 
   return NextResponse.json(uploaded, { status: 201 });

@@ -102,21 +102,19 @@ export default function NewProjectPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight">
-          <span className="text-gradient">New Comic</span>
-        </h1>
-        <p className="mt-2 text-sm text-slate-500">
+    <div className="max-w-xl mx-auto">
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-zinc-100">New Comic</h1>
+        <p className="mt-1 text-sm text-zinc-500">
           Describe your story and the AI will handle the rest
         </p>
       </div>
 
-      <div className="glass rounded-2xl p-8 glow-sm">
-        <div className="space-y-6">
+      <div className="card rounded-lg p-6">
+        <div className="space-y-5">
           {/* Title */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
               Title
             </label>
             <input
@@ -124,36 +122,36 @@ export default function NewProjectPage() {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="My Awesome Comic"
-              className="input-futuristic w-full rounded-xl px-4 py-3"
+              className="input w-full rounded-md px-3 py-2 text-sm"
             />
           </div>
 
           {/* Story Prompt */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">
-              Story Prompt <span className="text-indigo-400">*</span>
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
+              Story Prompt <span className="text-red-400">*</span>
             </label>
             <textarea
               value={storyPrompt}
               onChange={(e) => setStoryPrompt(e.target.value)}
-              placeholder="A cyberpunk detective investigates a series of AI-related crimes in Neo Tokyo. The story follows detective Ava as she uncovers a conspiracy that threatens the boundary between human and machine consciousness..."
-              rows={6}
-              className="input-futuristic w-full rounded-xl px-4 py-3"
+              placeholder="A cyberpunk detective investigates a series of AI-related crimes in Neo Tokyo..."
+              rows={5}
+              className="input w-full rounded-md px-3 py-2 text-sm"
             />
-            <p className="text-[11px] text-slate-600 mt-2">
+            <p className="text-xs text-zinc-600 mt-1.5">
               Include characters, setting, plot, and style preferences for best results.
             </p>
           </div>
 
           {/* Template */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
               Structure
             </label>
             <select
               value={templateIdx}
               onChange={(e) => setTemplateIdx(Number(e.target.value))}
-              className="input-futuristic w-full rounded-xl px-4 py-3 appearance-none cursor-pointer"
+              className="input w-full rounded-md px-3 py-2 text-sm appearance-none cursor-pointer"
             >
               {TEMPLATES.map((t, i) => (
                 <option key={i} value={i}>
@@ -165,10 +163,10 @@ export default function NewProjectPage() {
 
           {/* Reference Images */}
           <div>
-            <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wider">
+            <label className="block text-sm font-medium text-zinc-300 mb-1.5">
               Reference Images
             </label>
-            <p className="text-[11px] text-slate-600 mb-3">
+            <p className="text-xs text-zinc-600 mb-2">
               Upload character sheets, style guides, or mood boards to guide the visual style.
             </p>
 
@@ -184,9 +182,9 @@ export default function NewProjectPage() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="w-full rounded-xl border border-dashed border-indigo-500/20 bg-indigo-500/5 px-4 py-6 text-sm text-indigo-300/60 hover:border-indigo-500/40 hover:bg-indigo-500/8 hover:text-indigo-300 transition-all flex flex-col items-center gap-2"
+              className="w-full rounded-md border border-dashed border-zinc-700 bg-zinc-900 px-4 py-5 text-sm text-zinc-500 hover:border-zinc-500 hover:text-zinc-400 transition-colors flex flex-col items-center gap-2"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-indigo-400/50">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-zinc-600">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
@@ -195,22 +193,22 @@ export default function NewProjectPage() {
             </button>
 
             {refFiles.length > 0 && (
-              <div className="mt-4 grid grid-cols-4 gap-3">
+              <div className="mt-3 grid grid-cols-4 gap-2">
                 {refFiles.map((ref, i) => (
                   <div key={i} className="relative group">
                     <img
                       src={ref.preview}
                       alt={ref.file.name}
-                      className="h-24 w-full rounded-lg object-cover border border-white/5"
+                      className="h-20 w-full rounded-md object-cover border border-zinc-800"
                     />
                     <button
                       type="button"
                       onClick={() => removeRef(i)}
-                      className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500/90 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg"
+                      className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                     >
                       x
                     </button>
-                    <p className="text-[10px] text-slate-600 truncate mt-1">
+                    <p className="text-[10px] text-zinc-600 truncate mt-1">
                       {ref.file.name}
                     </p>
                   </div>
@@ -221,7 +219,7 @@ export default function NewProjectPage() {
 
           {/* Error */}
           {error && (
-            <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-300">
+            <div className="rounded-md bg-red-950/50 border border-red-900 px-3 py-2.5 text-sm text-red-400">
               {error}
             </div>
           )}
@@ -230,7 +228,7 @@ export default function NewProjectPage() {
           <button
             onClick={handleCreate}
             disabled={creating}
-            className="btn-accent w-full rounded-xl px-4 py-4 text-sm font-semibold tracking-wide disabled:opacity-50"
+            className="btn-primary w-full rounded-md px-4 py-2.5 text-sm"
           >
             {creating ? (
               <span className="flex items-center justify-center gap-2">
