@@ -1,13 +1,10 @@
 import OpenAI from "openai";
-import { ImageProvider, ImageAsset, ImageSize } from "./image";
+import { ImageProvider, ImageAsset, GeneratePanelArgs } from "./image";
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 export class OpenAIImageProvider implements ImageProvider {
-  async generatePanel(args: {
-    prompt: string;
-    size?: ImageSize;
-  }): Promise<ImageAsset> {
+  async generatePanel(args: GeneratePanelArgs): Promise<ImageAsset> {
     const res = await client.images.generate({
       model: "gpt-image-1",
       prompt: args.prompt,

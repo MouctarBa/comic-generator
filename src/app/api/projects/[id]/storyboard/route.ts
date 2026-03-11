@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
+import { processJob } from "@/lib/jobs/processors";
 
-// POST /api/projects/:id/storyboard — Enqueue storyboard generation job
+export const maxDuration = 60;
+
+// POST /api/projects/:id/storyboard — Generate storyboard (inline)
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -20,15 +23,20 @@ export async function POST(
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 
-  const { error } = await sb.from("jobs").insert({
-    project_id: projectId,
-    type: "storyboard",
-    payload: {},
-    status: "queued",
-  });
+  // Create job row for tracking
+  const { data: job, error: jErr } = await sb
+    .from("jobs")
+    .insert({
+      project_id: projectId,
+      type: "storyboard",
+      payload: {},
+      status: "running",
+    })
+    .select("*")
+    .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  if (jErr) {
+    return NextResponse.json({ error: jErr.message }, { status: 500 });
   }
 
   await sb
@@ -36,7 +44,26 @@ export async function POST(
     .update({ status: "generating_storyboard", updated_at: new Date().toISOString() })
     .eq("id", projectId);
 
-  return NextResponse.json({ ok: true, message: "Storyboard job queued" });
+  // Process inline instead of waiting for cron
+  try {
+    await processJob(job);
+    await sb
+      .from("jobs")
+      .update({ status: "done", updated_at: new Date().toISOString() })
+      .eq("id", job.id);
+    return NextResponse.json({ ok: true, message: "Storyboard generated" });
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    await sb
+      .from("jobs")
+      .update({ status: "failed", last_error: message, updated_at: new Date().toISOString() })
+      .eq("id", job.id);
+    await sb
+      .from("projects")
+      .update({ status: "draft", updated_at: new Date().toISOString() })
+      .eq("id", projectId);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
 
 // GET /api/projects/:id/storyboard — Get storyboard JSON

@@ -4,7 +4,6 @@ import { use } from "react";
 import { useState } from "react";
 import Link from "next/link";
 import { useProject } from "@/hooks/use-project";
-import { usePolling } from "@/hooks/use-polling";
 import { StatusBadge } from "@/components/status-badge";
 import { PanelCard } from "@/components/panel-card";
 
@@ -16,20 +15,20 @@ export default function GeneratePage({
   const { id: projectId } = use(params);
   const { data, loading, error, refresh } = useProject(projectId);
   const [generating, setGenerating] = useState(false);
-
-  // Poll while panels are being generated
-  const isGenerating =
-    data?.project.status === "generating" ||
-    data?.panels.some(
-      (p) => p.status === "pending" || p.status === "generating"
-    );
-  usePolling(refresh, 4000, !!isGenerating);
+  const [genError, setGenError] = useState<string | null>(null);
 
   async function handleGenerate() {
     setGenerating(true);
+    setGenError(null);
     try {
-      await fetch(`/api/projects/${projectId}/generate`, { method: "POST" });
+      const res = await fetch(`/api/projects/${projectId}/generate`, { method: "POST" });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Failed to generate panels");
+      }
       refresh();
+    } catch (e: unknown) {
+      setGenError(e instanceof Error ? e.message : String(e));
     } finally {
       setGenerating(false);
     }
@@ -64,13 +63,13 @@ export default function GeneratePage({
           >
             Back to Storyboard
           </Link>
-          {panels.length > 0 && !isGenerating && (
+          {panels.length > 0 && !generating && (
             <button
               onClick={handleGenerate}
               disabled={generating}
               className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-500 disabled:opacity-50 transition"
             >
-              {generating ? "Queuing..." : "Regenerate All"}
+              Regenerate All
             </button>
           )}
           {panels.length === 0 && (
@@ -79,7 +78,7 @@ export default function GeneratePage({
               disabled={generating}
               className="rounded bg-green-600 px-4 py-2 text-white hover:bg-green-500 disabled:opacity-50 transition"
             >
-              {generating ? "Queuing..." : "Generate Panels"}
+              {generating ? "Generating..." : "Generate Panels"}
             </button>
           )}
           {project.status === "ready" && (
@@ -92,6 +91,13 @@ export default function GeneratePage({
           )}
         </div>
       </div>
+
+      {/* Error */}
+      {genError && (
+        <div className="mb-6 rounded bg-red-900/50 border border-red-700 px-4 py-2 text-sm text-red-300">
+          {genError}
+        </div>
+      )}
 
       {/* Progress bar */}
       {totalPanels > 0 && (
@@ -121,17 +127,19 @@ export default function GeneratePage({
           ))}
         </div>
       ) : (
-        <p className="text-gray-500 text-center py-12">
-          No panels yet. Click &quot;Generate Panels&quot; to start image
-          generation.
-        </p>
+        !generating && (
+          <p className="text-gray-500 text-center py-12">
+            No panels yet. Click &quot;Generate Panels&quot; to start image
+            generation.
+          </p>
+        )
       )}
 
-      {isGenerating && (
+      {generating && (
         <div className="mt-6 text-center">
           <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
           <p className="mt-2 text-sm text-gray-400">
-            Generating panels... this page auto-refreshes.
+            Generating panels... this may take a few minutes.
           </p>
         </div>
       )}

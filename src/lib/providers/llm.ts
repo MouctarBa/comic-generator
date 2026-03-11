@@ -6,6 +6,7 @@ export type StoryboardJSON = {
     art_style?: string;
     tone?: string;
     palette?: string[];
+    visual_anchor?: string;
   };
   characters?: Array<{
     id: string;
@@ -22,6 +23,7 @@ export type StoryboardJSON = {
       characters?: string[];
       dialogue: Array<{ speaker: string; text: string }>;
       must_keep: string[];
+      transition?: string;
     }>;
   }>;
 };

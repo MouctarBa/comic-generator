@@ -92,36 +92,51 @@ function buildPanelPrompt(
   panel: StoryboardJSON["pages"][0]["panels"][0]
 ) {
   const style = storyboard.style ?? {};
-  const must = (panel.must_keep ?? []).join(", ");
-  const dialogue = (panel.dialogue ?? [])
-    .map((d) => `${d.speaker}: "${d.text}"`)
-    .join(" | ");
 
-  // Build character descriptions from storyboard characters list
+  // Visual anchor is the #1 consistency tool — prepended to EVERY panel
+  const visualAnchor = style.visual_anchor || style.art_style || "";
+
+  // Build FULL character descriptions for every character in this panel
   const charDescriptions = (panel.characters ?? [])
     .map((cId) => {
       const char = storyboard.characters?.find((c) => c.id === cId);
-      return char ? `${char.name}: ${char.spec ?? "no spec"}` : cId;
+      return char ? `  - ${char.name}: ${char.spec ?? "no description"}` : `  - ${cId}`;
     })
-    .join("; ");
+    .join("\n");
+
+  const must = (panel.must_keep ?? []).join(", ");
+
+  const palette = style.palette?.length
+    ? `Color palette: ${style.palette.join(", ")}.`
+    : "";
 
   return [
-    `Comic panel illustration.`,
-    style.art_style ? `Art style: ${style.art_style}.` : "",
+    // Style block (identical for every panel = visual consistency)
+    `STYLE: ${visualAnchor}`,
     style.genre ? `Genre: ${style.genre}.` : "",
     style.tone ? `Tone: ${style.tone}.` : "",
-    `Shot: ${panel.shot}.`,
+    palette,
+    "",
+    // Scene-specific
+    `SCENE: Comic book panel illustration.`,
+    `Shot type: ${panel.shot}.`,
     `Setting: ${panel.setting}.`,
     `Action: ${panel.action}.`,
-    charDescriptions ? `Characters: ${charDescriptions}.` : "",
-    must ? `Must keep: ${must}.` : "",
-    dialogue
-      ? `Dialogue (do NOT render as text in image): ${dialogue}.`
-      : "",
-    `High quality, coherent composition, professional comic art.`,
+    "",
+    // Characters with full specs (keeps characters looking the same across panels)
+    charDescriptions ? `CHARACTERS IN THIS PANEL:\n${charDescriptions}` : "",
+    "",
+    // Visual continuity
+    must ? `VISUAL CONTINUITY: ${must}.` : "",
+    "",
+    // Technical requirements
+    `Do NOT render any text, speech bubbles, or dialogue in the image.`,
+    `High quality, coherent composition, professional comic art, consistent character designs.`,
   ]
-    .filter(Boolean)
-    .join("\n");
+    .filter((line) => line !== undefined)
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
