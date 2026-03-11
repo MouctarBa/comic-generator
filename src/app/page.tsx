@@ -25,19 +25,44 @@ export default function HomePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold mb-6">Your Comics</h1>
+      {/* Hero section */}
+      <div className="mb-10">
+        <h1 className="text-3xl font-bold tracking-tight">
+          <span className="text-gradient">Your Comics</span>
+        </h1>
+        <p className="mt-2 text-sm text-slate-500">
+          AI-powered comic creation from story to panels
+        </p>
+      </div>
 
       {loading ? (
-        <p className="text-gray-500">Loading projects...</p>
+        <div className="flex items-center justify-center py-20">
+          <div className="spinner h-8 w-8" />
+        </div>
       ) : projects.length === 0 ? (
-        <div className="text-center py-20">
-          <p className="text-gray-500 mb-4">No projects yet</p>
-          <Link
-            href="/new"
-            className="rounded bg-blue-600 px-6 py-2 text-white hover:bg-blue-500 transition"
-          >
-            Create Your First Comic
-          </Link>
+        <div className="flex flex-col items-center justify-center py-24">
+          <div className="glass rounded-2xl p-12 text-center max-w-md glow-md">
+            <div className="mx-auto mb-6 h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center border border-indigo-500/20">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="text-indigo-400">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-semibold text-slate-200 mb-2">
+              No comics yet
+            </h2>
+            <p className="text-sm text-slate-500 mb-6">
+              Create your first AI-powered comic book in minutes.
+            </p>
+            <Link
+              href="/new"
+              className="btn-accent inline-block rounded-xl px-8 py-3 font-medium"
+            >
+              Create Your First Comic
+            </Link>
+          </div>
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -45,15 +70,22 @@ export default function HomePage() {
             <Link
               key={p.id}
               href={`/project/${p.id}/storyboard`}
-              className="rounded-lg border border-gray-800 bg-gray-900 p-4 hover:border-gray-600 transition"
+              className="glass rounded-xl p-5 group hover:glow-sm transition-all duration-300"
             >
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="font-semibold truncate">{p.title}</h2>
+              <div className="flex items-start justify-between mb-3">
+                <h2 className="font-semibold text-slate-200 truncate pr-3 group-hover:text-white transition">
+                  {p.title}
+                </h2>
                 <StatusBadge status={p.status} />
               </div>
-              <p className="text-xs text-gray-500">
-                {new Date(p.created_at).toLocaleDateString()}
-              </p>
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-slate-500 font-mono">
+                  {new Date(p.created_at).toLocaleDateString()}
+                </p>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-slate-600 group-hover:text-indigo-400 transition">
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </div>
             </Link>
           ))}
         </div>
